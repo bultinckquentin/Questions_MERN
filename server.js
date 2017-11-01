@@ -7,12 +7,41 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
+const GoogleStrategy = require('passport-google-oauth2').Strategy;
+const passport = require('passport');
 
+//TODO remove underlying imports from this file
 const Thread = require("./model/thread");
 const Answer = require("./model/answer");
 const Comment = require("./model/comment");
 const Tag = require("./model/tag");
 const User = require("./model/user");
+
+/*      SETUP GOOGLE STRATEGY
+*************************************/
+passport.use(new GoogleStrategy({
+        clientID:     process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        callbackURL: "http://localhost:3333/auth/google/callback",
+        passReqToCallback   : true
+    },
+    function(request, accessToken, refreshToken, profile, done) {
+        // console.log(profile);
+
+        // User.findOneOrCreate({ googleId: profile.id }, function (err, user) {
+        //     return done(err, user);
+        // });
+
+        return done(null, profile);
+    }
+));
+passport.serializeUser(function(user, done) {
+    done(null, user);
+});
+
+passport.deserializeUser(function(user, done) {
+    done(null, user);
+});
 
 /*      DATABASE CONNECTION
 **********************************/
@@ -28,6 +57,9 @@ const app = express();
 
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(bodyParser.json());
+
+app.use(passport.initialize());
+app.use(passport.session());
 
 //To prevent errors from Cross Origin Resource Sharing, we will set 
 //our headers to allow CORS with middleware like so:
@@ -47,9 +79,13 @@ app.use(function (req, res, next) {
 let apiRouter = require("./routeHandler/API");
 app.use('/api', apiRouter);
 
+//Authentication with google
+let googleAuthRouter = require("./routeHandler/googleAuth");
+app.use("/auth/google", googleAuthRouter);
+
 /*      START SERVER
 ******************************/
 const port = process.env.API_PORT;
 app.listen(port, function () {
-    console.log(`api running on port ${port}`);
+    console.log(`Server running on port ${port}`);
 });
